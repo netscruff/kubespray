@@ -6,7 +6,6 @@ module "network" {
   subnet_cidr     = "${var.subnet_cidr}"
   cluster_name    = "${var.cluster_name}"
   dns_nameservers = "${var.dns_nameservers}"
-  use_neutron     = "${var.use_neutron}"
 }
 
 module "ips" {
@@ -36,6 +35,10 @@ module "compute" {
   number_of_bastions                           = "${var.number_of_bastions}"
   number_of_k8s_nodes_no_floating_ip           = "${var.number_of_k8s_nodes_no_floating_ip}"
   number_of_gfs_nodes_no_floating_ip           = "${var.number_of_gfs_nodes_no_floating_ip}"
+  bastion_volume_size_in_gb                    = "${var.bastion_volume_size_in_gb}"
+  etcd_volume_size_in_gb                       = "${var.etcd_volume_size_in_gb}"
+  master_volume_size_in_gb                     = "${var.master_volume_size_in_gb}"
+  node_volume_size_in_gb                       = "${var.node_volume_size_in_gb}"
   gfs_volume_size_in_gb                        = "${var.gfs_volume_size_in_gb}"
   public_key_path                              = "${var.public_key_path}"
   image                                        = "${var.image}"
@@ -54,7 +57,6 @@ module "compute" {
   bastion_allowed_remote_ips                   = "${var.bastion_allowed_remote_ips}"
   supplementary_master_groups                  = "${var.supplementary_master_groups}"
   supplementary_node_groups                    = "${var.supplementary_node_groups}"
-  worker_allowed_ports                         = "${var.worker_allowed_ports}"
 
   network_id = "${module.network.router_id}"
 }

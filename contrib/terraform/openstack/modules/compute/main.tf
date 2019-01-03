@@ -1,3 +1,18 @@
+resource "openstack_compute_servergroup_v2" "k8s_master_sg" {
+  name     = "${var.cluster_name}-k8s-master-sg"
+  policies = ["anti-affinity"]
+}
+
+resource "openstack_compute_servergroup_v2" "k8s_etcd_sg" {
+  name     = "${var.cluster_name}-k8s-etcd-sg"
+  policies = ["anti-affinity"]
+}
+
+resource "openstack_compute_servergroup_v2" "k8s_node_sg" {
+  name     = "${var.cluster_name}-k8s-node-sg"
+  policies = ["anti-affinity"]
+}
+
 resource "openstack_compute_keypair_v2" "k8s" {
   name       = "kubernetes-${var.cluster_name}"
   public_key = "${chomp(file(var.public_key_path))}"
@@ -52,13 +67,12 @@ resource "openstack_networking_secgroup_v2" "worker" {
 }
 
 resource "openstack_networking_secgroup_rule_v2" "worker" {
-  count = "${length(var.worker_allowed_ports)}"
   direction = "ingress"
   ethertype = "IPv4"
-  protocol = "${lookup(var.worker_allowed_ports[count.index], "protocol", "tcp")}"
-  port_range_min = "${lookup(var.worker_allowed_ports[count.index], "port_range_min")}"
-  port_range_max = "${lookup(var.worker_allowed_ports[count.index], "port_range_max")}"
-  remote_ip_prefix = "${lookup(var.worker_allowed_ports[count.index], "remote_ip_prefix", "0.0.0.0/0")}"
+  protocol = "tcp"
+  port_range_min = "30000"
+  port_range_max = "32767"
+  remote_ip_prefix = "0.0.0.0/0"
   security_group_id = "${openstack_networking_secgroup_v2.worker.id}"
 }
 
@@ -88,13 +102,21 @@ resource "openstack_compute_instance_v2" "bastion" {
     command = "sed s/USER/${var.ssh_user}/ contrib/terraform/openstack/ansible_bastion_template.txt | sed s/BASTION_ADDRESS/${var.bastion_fips[0]}/ > contrib/terraform/group_vars/no-floating.yml"
   }
 
+  block_device {
+    uuid                  = "${var.image}"
+    source_type           = "image"
+    volume_size           = "${var.bastion_volume_size_in_gb}"  
+    boot_index            = 0
+    destination_type      = "volume"
+    delete_on_termination = true
+  }
+
 }
 
 resource "openstack_compute_instance_v2" "k8s_master" {
   name       = "${var.cluster_name}-k8s-master-${count.index+1}"
   count      = "${var.number_of_k8s_masters}"
   availability_zone = "${element(var.az_list, count.index)}"
-  image_name = "${var.image}"
   flavor_id  = "${var.flavor_k8s_master}"
   key_pair   = "${openstack_compute_keypair_v2.k8s.name}"
 
@@ -118,13 +140,24 @@ resource "openstack_compute_instance_v2" "k8s_master" {
     command = "sed s/USER/${var.ssh_user}/ contrib/terraform/openstack/ansible_bastion_template.txt | sed s/BASTION_ADDRESS/${element( concat(var.bastion_fips, var.k8s_master_fips), 0)}/ > contrib/terraform/group_vars/no-floating.yml"
   }
 
+  scheduler_hints = {
+    group = "${openstack_compute_servergroup_v2.k8s_master_sg.id}"
+  }
+
+  block_device {
+    uuid                  = "${var.image}"
+    source_type           = "image"
+    volume_size           = "${var.master_volume_size_in_gb}" 
+    boot_index            = 0
+    destination_type      = "volume"
+    delete_on_termination = true
+  }
 }
 
 resource "openstack_compute_instance_v2" "k8s_master_no_etcd" {
   name       = "${var.cluster_name}-k8s-master-ne-${count.index+1}"
   count      = "${var.number_of_k8s_masters_no_etcd}"
   availability_zone = "${element(var.az_list, count.index)}"
-  image_name = "${var.image}"
   flavor_id  = "${var.flavor_k8s_master}"
   key_pair   = "${openstack_compute_keypair_v2.k8s.name}"
 
@@ -147,13 +180,25 @@ resource "openstack_compute_instance_v2" "k8s_master_no_etcd" {
     command = "sed s/USER/${var.ssh_user}/ contrib/terraform/openstack/ansible_bastion_template.txt | sed s/BASTION_ADDRESS/${element( concat(var.bastion_fips, var.k8s_master_fips), 0)}/ > contrib/terraform/group_vars/no-floating.yml"
   }
 
+  scheduler_hints = {
+    group = "${openstack_compute_servergroup_v2.k8s_master_sg.id}"
+  }
+
+  block_device {
+    uuid                  = "${var.image}"
+    source_type           = "image"
+    volume_size           = "${var.etcd_volume_size_in_gb}" 
+    boot_index            = 0
+    destination_type      = "volume"
+    delete_on_termination = true
+  }
+
 }
 
 resource "openstack_compute_instance_v2" "etcd" {
   name       = "${var.cluster_name}-etcd-${count.index+1}"
   count      = "${var.number_of_etcd}"
   availability_zone = "${element(var.az_list, count.index)}"
-  image_name = "${var.image}"
   flavor_id  = "${var.flavor_etcd}"
   key_pair   = "${openstack_compute_keypair_v2.k8s.name}"
 
@@ -169,13 +214,26 @@ resource "openstack_compute_instance_v2" "etcd" {
     depends_on       = "${var.network_id}"
   }
 
+  scheduler_hints = {
+    group = "${openstack_compute_servergroup_v2.k8s_etcd_sg.id}"
+  }
+
+  block_device {
+    uuid                  = "${var.image}"
+    source_type           = "image"
+    volume_size           = "${var.etcd_volume_size_in_gb}"
+    boot_index            = 0
+    destination_type      = "volume"
+    delete_on_termination = true
+  }
+
+
 }
 
 resource "openstack_compute_instance_v2" "k8s_master_no_floating_ip" {
   name       = "${var.cluster_name}-k8s-master-nf-${count.index+1}"
   count      = "${var.number_of_k8s_masters_no_floating_ip}"
   availability_zone = "${element(var.az_list, count.index)}"
-  image_name = "${var.image}"
   flavor_id  = "${var.flavor_k8s_master}"
   key_pair   = "${openstack_compute_keypair_v2.k8s.name}"
 
@@ -194,13 +252,25 @@ resource "openstack_compute_instance_v2" "k8s_master_no_floating_ip" {
     depends_on       = "${var.network_id}"
   }
 
+  scheduler_hints = {
+    group = "${openstack_compute_servergroup_v2.k8s_master_sg.id}"
+  }
+
+  block_device {
+    uuid                  = "${var.image}"
+    source_type           = "image"
+    volume_size           = "${var.master_volume_size_in_gb}"
+    boot_index            = 0
+    destination_type      = "volume"
+    delete_on_termination = true
+  }
+
 }
 
 resource "openstack_compute_instance_v2" "k8s_master_no_floating_ip_no_etcd" {
   name       = "${var.cluster_name}-k8s-master-ne-nf-${count.index+1}"
   count      = "${var.number_of_k8s_masters_no_floating_ip_no_etcd}"
   availability_zone = "${element(var.az_list, count.index)}"
-  image_name = "${var.image}"
   flavor_id  = "${var.flavor_k8s_master}"
   key_pair   = "${openstack_compute_keypair_v2.k8s.name}"
 
@@ -218,13 +288,25 @@ resource "openstack_compute_instance_v2" "k8s_master_no_floating_ip_no_etcd" {
     depends_on       = "${var.network_id}"
   }
 
+  scheduler_hints = {
+    group = "${openstack_compute_servergroup_v2.k8s_master_sg.id}"
+  }
+
+  block_device {
+    uuid                  = "${var.image}"
+    source_type           = "image"
+    volume_size           = "${var.master_volume_size_in_gb}"
+    boot_index            = 0
+    destination_type      = "volume"
+    delete_on_termination = true
+  }
+
 }
 
 resource "openstack_compute_instance_v2" "k8s_node" {
   name       = "${var.cluster_name}-k8s-node-${count.index+1}"
   count      = "${var.number_of_k8s_nodes}"
   availability_zone = "${element(var.az_list, count.index)}"
-  image_name = "${var.image}"
   flavor_id  = "${var.flavor_k8s_node}"
   key_pair   = "${openstack_compute_keypair_v2.k8s.name}"
 
@@ -248,13 +330,25 @@ resource "openstack_compute_instance_v2" "k8s_node" {
     command = "sed s/USER/${var.ssh_user}/ contrib/terraform/openstack/ansible_bastion_template.txt | sed s/BASTION_ADDRESS/${element( concat(var.bastion_fips, var.k8s_node_fips), 0)}/ > contrib/terraform/group_vars/no-floating.yml"
   }
 
+  scheduler_hints = {
+    group = "${openstack_compute_servergroup_v2.k8s_node_sg.id}"
+  }
+
+  block_device {
+    uuid                  = "${var.image}"
+    source_type           = "image"
+    volume_size           = "${var.node_volume_size_in_gb}" 
+    boot_index            = 0
+    destination_type      = "volume"
+    delete_on_termination = true
+  }
+
 }
 
 resource "openstack_compute_instance_v2" "k8s_node_no_floating_ip" {
   name       = "${var.cluster_name}-k8s-node-nf-${count.index+1}"
   count      = "${var.number_of_k8s_nodes_no_floating_ip}"
   availability_zone = "${element(var.az_list, count.index)}"
-  image_name = "${var.image}"
   flavor_id  = "${var.flavor_k8s_node}"
   key_pair   = "${openstack_compute_keypair_v2.k8s.name}"
 
@@ -271,6 +365,19 @@ resource "openstack_compute_instance_v2" "k8s_node_no_floating_ip" {
     ssh_user         = "${var.ssh_user}"
     kubespray_groups = "kube-node,k8s-cluster,no-floating,${var.supplementary_node_groups}"
     depends_on       = "${var.network_id}"
+  }
+
+  scheduler_hints = {
+    group = "${openstack_compute_servergroup_v2.k8s_node_sg.id}"
+  }
+
+  block_device {
+    uuid                  = "${var.image}"
+    source_type           = "image"
+    volume_size           = "${var.node_volume_size_in_gb}"
+    boot_index            = 0
+    destination_type      = "volume"
+    delete_on_termination = true
   }
 
 }

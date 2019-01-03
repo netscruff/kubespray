@@ -328,7 +328,6 @@ def openstack_host(resource, module_name):
     attrs = {
         'access_ip_v4': raw_attrs['access_ip_v4'],
         'access_ip_v6': raw_attrs['access_ip_v6'],
-        'access_ip': raw_attrs['access_ip_v4'],
         'ip': raw_attrs['network.0.fixed_ip_v4'],
         'flavor': parse_dict(raw_attrs, 'flavor',
                              sep='_'),
@@ -386,7 +385,7 @@ def openstack_host(resource, module_name):
     })
 
     # add groups based on attrs
-    groups.append('os_image=' + attrs['image']['name'])
+    #groups.append('os_image=' + attrs['image']['name'])
     groups.append('os_flavor=' + attrs['flavor']['name'])
     groups.extend('os_metadata_%s=%s' % item
                   for item in attrs['metadata'].items())
@@ -686,7 +685,6 @@ def iter_host_ips(hosts, ips):
             ip = ips[host_id]
             host[1].update({
                 'access_ip_v4': ip,
-                'access_ip': ip,
                 'public_ipv4': ip,
                 'ansible_ssh_host': ip,
             })

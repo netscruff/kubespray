@@ -22,6 +22,14 @@ variable "number_of_bastions" {}
 
 variable "number_of_gfs_nodes_no_floating_ip" {}
 
+variable "bastion_volume_size_in_gb" {}
+
+variable "etcd_volume_size_in_gb" {}
+
+variable "master_volume_size_in_gb" {}
+
+variable "node_volume_size_in_gb" {}
+
 variable "gfs_volume_size_in_gb" {}
 
 variable "public_key_path" {}
@@ -46,9 +54,7 @@ variable "network_name" {}
 
 variable "flavor_bastion" {}
 
-variable "network_id" {
-  default = ""
-}
+variable "network_id" {}
 
 variable "k8s_master_fips" {
   type = "list"
@@ -72,8 +78,4 @@ variable "supplementary_master_groups" {
 
 variable "supplementary_node_groups" {
   default = ""
-}
-
-variable "worker_allowed_ports" {
-  type = "list"
 }

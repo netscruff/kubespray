@@ -9,5 +9,3 @@ variable "dns_nameservers" {
 }
 
 variable "subnet_cidr" {}
-
-variable "use_neutron" {}

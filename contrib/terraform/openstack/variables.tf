@@ -44,6 +44,22 @@ variable "number_of_gfs_nodes_no_floating_ip" {
   default = 0
 }
 
+variable "bastion_volume_size_in_gb" {
+  default = 10
+}
+
+variable "etcd_volume_size_in_gb" {
+  default = 10
+}
+
+variable "master_volume_size_in_gb" {
+  default = 10
+}
+
+variable "node_volume_size_in_gb" {
+  default = 20
+}
+
 variable "gfs_volume_size_in_gb" {
   default = 75
 }
@@ -103,11 +119,6 @@ variable "network_name" {
   default     = "internal"
 }
 
-variable "use_neutron" {
-  description = "Use neutron"
-  default     = 1
-}
-
 variable "subnet_cidr" {
   description = "Subnet CIDR block."
   type = "string"
@@ -143,16 +154,4 @@ variable "bastion_allowed_remote_ips" {
   description = "An array of CIDRs allowed to SSH to hosts"
   type = "list"
   default = ["0.0.0.0/0"]
-}
-
-variable "worker_allowed_ports" {
-  type = "list"
-  default = [
-    {
-      "protocol" = "tcp"
-      "port_range_min" = 30000
-      "port_range_max" = 32767
-      "remote_ip_prefix" = "0.0.0.0/0"
-    }
-  ]
 }
