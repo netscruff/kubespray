@@ -72,6 +72,10 @@ variable "bastion_allowed_remote_ips" {
   type = "list"
 }
 
+variable "master_allowed_remote_ips" {
+  type = "list"
+}
+
 variable "supplementary_master_groups" {
   default = ""
 }
